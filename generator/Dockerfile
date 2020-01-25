@@ -1,5 +1,5 @@
 # sudo docker build -t generator:latest .
-# sudo docker run -v <path to repo>/powershell/generator/res/:/home/generator/res/ -it generator:latest <number of files to generate>
+# sudo docker run -v <path to repo>/powershell/generator/res/:/home/generator/res/ -it generator:latest <number of files to generate> <thread #>
 
 FROM mcr.microsoft.com/powershell
 
@@ -14,4 +14,5 @@ COPY obfuscate.ps1 /home/generator/obfuscate.ps1
 
 WORKDIR /home/generator
 
-ENTRYPOINT ["/usr/bin/time","/usr/bin/python3","/home/generator/generator.py"]
+# ENTRYPOINT ["/usr/bin/time","/usr/bin/python3","/home/generator/generator.py"]
+ENTRYPOINT ["/usr/bin/python3","/home/generator/generator.py"]
