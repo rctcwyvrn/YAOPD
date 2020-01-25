@@ -29,7 +29,7 @@ def get_random_word():
 def get_random_regkey():
 	key_name = get_random_word()
 	key_location = "HKCU:\\" + "\\".join([get_random_word() for _ in range(random.randint(2,5))])
-	return key_name, key_location
+	return key_location, key_name
 
 def get_random_shellcode():
 	shellcode = ",".join([hex(random.randint(0,255)) for _ in range(150)])
@@ -46,9 +46,8 @@ def schtasks_persistence_cmd():
 	return cmd
 
 def set_registry_key_cmd():
-	cmd = "$code = \"" + get_random_text(50,100) + "\"\n"
 	key_location, key_name = get_random_regkey()
-	cmd += "Set-ItemProperty \"HKCU:\\" + key_location + "\\\" -Name " + key_name + " -Value " + "$code \n"
+	cmd = f"Set-ItemProperty '{key_location}' -Name '{key_name}' -Value {get_random_text(50,100)}\n"
 	return cmd
 
 def inject_shellcode_cmd():
@@ -57,8 +56,7 @@ def inject_shellcode_cmd():
 	return cmd
 
 # commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
-#commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd] # inject shellcode seems to be broken when we try to obfuscate it :c
-commands = [remote_payload_cmd,schtasks_persistence_cmd]
+commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd] # inject shellcode seems to be broken when we try to obfuscate it :c
 
 # AST doesnt work with schtasks and remote_payload
 # set registry key has a 100% fail rate
@@ -79,13 +77,11 @@ def generate_raw(n):
 		f.close()
 
 #invoke_obfuscation_choices = ["TOKEN,ALL,1,HOME","AST,ALL,1,HOME","STRING,ALL,1,HOME","ENCODING,ALL,1,HOME"]
-invoke_obfuscation_choices = ["TOKEN,ALL,1,HOME","STRING,ALL,1,HOME","ENCODING,ALL,1,HOME"]
+invoke_obfuscation_choices = ["TOKEN,ALL,1,HOME","STRING,ALL,1,HOME"]*8
+invoke_obfuscation_choices += [f"ENCODING,{str(i+1)},1,HOME" for i in range(8)]
+# print(invoke_obfuscation_choices)
 
-
-locky = multiprocessing.Lock()
 def obfuscate(script_num, conn):
-	global locky
-	#locky.acquire()
 
 	package = [[],[],[],[]]
 	try:
@@ -93,7 +89,7 @@ def obfuscate(script_num, conn):
 		obfs_commands = random.choice(invoke_obfuscation_choices)
 
 		if(random.randint(0,1) == 0):
-			obfs_commands+=",COMPRESS,ALL,1,HOME"
+			obfs_commands+=",COMPRESS,1,1,HOME"
 
 		obfs_commands+= ",OUT"
 
@@ -103,15 +99,11 @@ def obfuscate(script_num, conn):
 		#p.read_nonblocking(size=10000)
 		p.expect_exact("Enter path for output file (or leave blank for default): ")
 		p.sendline(f"./res/dataset-{str(script_num)}-obfs.ps1")
-
-		#pexpect.run(f"pwsh obfuscate.ps1 -Filename ./res/dataset-{str(script_num)}-raw.ps1 -Command {obfs_commands}", events={"or leave blank for default \\):": f"./res/dataset-{str(script_num)}-obfs.ps1"})
-		
-		print(f"Got to the waiting step #{script_num}")
-		#p.wait() #this is the only one that works multithreaded
-		p.interact() #this works but only singlethreaded
+		p.wait() #this is the only one that works multithreaded
+		#p.interact() #this works but only singlethreaded
 		#p.expect(pexpect.EOF) this should work but it just doesnt
 		print(f"Succeeded script #{script_num}!")
-		#p.close()
+		p.close()
 
 		package[0].append(str(script_num))
 		package[1].append(obfs_commands)
@@ -123,7 +115,6 @@ def obfuscate(script_num, conn):
 		package[2].append(str(script_num))
 		package[3].append(obfs_commands)
 
-	#locky.release()
 	conn.send(package)
 	conn.close()
 	return
@@ -140,11 +131,10 @@ def run_threads(targets):
 	global success, failed, succ_cmds, failed_cmds
 	threads = []
 	pipes = []
+
 	for target in targets:
 		parent, child = multiprocessing.Pipe()
 		t = multiprocessing.Process(target=obfuscate, args=[target, child])
-
-		print(f"Starting thread target = {target}")
 		t.start()
 		threads.append(t)
 		pipes.append(parent)
@@ -182,9 +172,9 @@ def generate_obfs(n):
 
 	print(f"Succeeded {str(len(success))}/{str(n)} |", success)
 
-	#for fail in failed:
-		#print(f"Deleting failed script {fail}")
-		#os.system(f"rm res/dataset-{str(fail)}-raw.ps1")
+	for fail in failed:
+		print(f"Deleting failed script {fail}")
+		os.system(f"rm res/dataset-{str(fail)}-raw.ps1")
 
 	print("succeded", succ_cmds)
 	print("failed", failed_cmds)
