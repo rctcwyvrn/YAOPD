@@ -2,6 +2,8 @@
 import random
 import string
 import pexpect
+import os
+import sys
 
 def get_random_dest():
 	path = "/" + "".join([random.choice(string.ascii_letters + string.digits) for _ in range(random.randint(5,10))])
@@ -51,7 +53,8 @@ def inject_shellcode_cmd():
 	cmd += "".join(open("./scripts/inject_shellcode.ps1").readlines())
 	return cmd
 
-commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
+# commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
+commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd] # inject shellcode seems to be broken when we try to obfuscate it :c
 
 def generate_script():
 	script = ""
@@ -64,23 +67,57 @@ def generate_script():
 def generate_raw(n):
 	for i in range(n):
 		script = generate_script()
-		f = open(f"res/dataset-{i}.ps1",'w')
+		f = open(f"res/dataset-{i}-raw.ps1",'w')
 		f.write(script)
 		f.close()
+
+invoke_obfuscation_choices = ["TOKEN,ALL,1,HOME","AST,ALL,1,HOME","STRING,ALL,1,HOME","ENCODING,ALL,1,HOME"]
 
 def generate_obfs(n):
 	print("Generating fake malicious powershell")
 	generate_raw(n)
 
 	print("Converting to obfuscated powershell")
-	#Still need to figure out how this is gonna work
-	#p = subprocess.Popen(['powershell.exe', './Invoke-Obfuscation'], stdout=sys.stdout)
-	obfs_commands = "TOKEN,ALL,1,OUT"
-	p = pexpect.spawn("pwsh obfuscate.ps1 -Filename ./res/dataset-0.ps1 -Command " + obfs_commands)
-	p.logfile_read = open("log", 'w')
-	p.expect("default")
-	p.sendline("./res/test.ps1")
+	
+	success = []
+	failed = []
+	succ_cmds = []
+	failed_cmds = []
+	for i in range(n):
+		try:
+			#obfs_commands = ",".join([random.choice(invoke_obfuscation_choices) for _ in range(random.randint(1,4))])
+			obfs_commands = random.choice(invoke_obfuscation_choices)
 
-	print("Done!")
+			if(random.randint(0,1) == 0):
+				obfs_commands+=",COMPRESS,ALL,1,HOME"
 
-generate_obfs(10)
+			obfs_commands+= ",OUT"
+			print(f"Script #{i}/{str(n)}, commands for Invoke-Obfuscation = {obfs_commands}")
+			p = pexpect.spawn(f"pwsh obfuscate.ps1 -Filename ./res/dataset-{str(i)}-raw.ps1 -Command {obfs_commands}")
+			#p.logfile_read = open("log", 'w')
+			p.expect_exact("Enter path for output file (or leave blank for default): ")
+			p.sendline(f"./res/dataset-{str(i)}-obfs.ps1")
+			#print("generated file?")
+			#p.expect(pexpect.EOF)
+			print("Done!")
+			p.interact() #Meh it works
+			success.append(str(i))
+			succ_cmds.append(obfs_commands)
+
+		except Exception as e:
+			# print(e)
+			failed.append(str(i))
+			print(f"Obfuscation for script #{i} failed! Command = {obfs_commands}")
+			failed_cmds.append(obfs_commands)
+			continue
+
+	print(f"Succeeded {str(len(success))}/{str(n)} | " + ",".join(success))
+
+	for fail in failed:
+		print(f"Deleting failed script {fail}")
+		os.system(f"rm res/dataset-{str(fail)}-raw.ps1")
+
+	print("succeded", succ_cmds)
+	print("failed", failed_cmds)
+
+generate_obfs(int(sys.argv[1]))
