@@ -102,7 +102,7 @@ def obfuscate(script_num, conn):
 		p.wait() #this is the only one that works multithreaded
 		#p.interact() #this works but only singlethreaded
 		#p.expect(pexpect.EOF) this should work but it just doesnt
-		print(f"Succeeded script #{script_num}!")
+		print(f"Script #{script_num} obfuscation succeeded!")
 		p.close()
 
 		package[0].append(str(script_num))
@@ -129,31 +129,34 @@ failed_cmds = []
 
 def run_threads(targets):
 	global success, failed, succ_cmds, failed_cmds
-	threads = []
 	pipes = []
 
 	for target in targets:
 		parent, child = multiprocessing.Pipe()
 		t = multiprocessing.Process(target=obfuscate, args=[target, child])
 		t.start()
-		threads.append(t)
-		pipes.append(parent)
+		pipes.append([parent,target,t])
 
-	for p in pipes:
+	for pipe,target,thread in pipes:
 		try:
-			p.poll(60)
-			package = p.recv()
+			if(not pipe.poll(105)):
+				raise TimeoutException() #yes i know this doesn't do what i want it to do, yes i am too lazy to do it properly
 
+			package = pipe.recv()
+			print(f"Received package from script #{target}")
 			success += package[0]
 			succ_cmds += package[1]
 			failed += package[2]
 			failed_cmds += package[3]
 
-		except Exception as e:
-			print("Timeout while polling for result", e)
+			thread.join()
 
-	for t in threads:
-		t.join()
+		except Exception as e:
+			print(f"Timeout while polling for result from script # {target}")
+			failed.append(target)
+			failed_cmds.append("TIMEOUT")
+
+			thread.terminate()
 
 	return success, failed, succ_cmds, failed_cmds
 
@@ -168,16 +171,16 @@ def generate_obfs(n):
 		targets = [x*THREAD_NUM + y for y in range(THREAD_NUM)]
 		run_threads(targets)
 	
-	run_threads([x for x in range(n % THREAD_NUM)])
+	run_threads([x + THREAD_NUM*math.floor(n/THREAD_NUM) for x in range(n % THREAD_NUM)])
 
-	print(f"Succeeded {str(len(success))}/{str(n)} |", success)
+	print(f"Succeeded {str(len(success))}/{str(n)}")
 
 	for fail in failed:
 		print(f"Deleting failed script {fail}")
 		os.system(f"rm res/dataset-{str(fail)}-raw.ps1")
 
-	print("succeded", succ_cmds)
-	print("failed", failed_cmds)
+	#print("succeded", succ_cmds)
+	#print("failed", failed_cmds)
 	print("Failed #", failed)
 
 generate_obfs(int(sys.argv[1]))
