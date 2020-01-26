@@ -1,0 +1,3 @@
+[submodule "generator/Invoke-Obfuscation"]
+	path = generator/Invoke-Obfuscation
+	url = git@github.com:danielbohannon/Invoke-Obfuscation.git
