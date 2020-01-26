@@ -14,6 +14,6 @@ Solution? The solution to the rest of lifes problems, neural networks!
 
 [Inspiration](https://www.endgame.com/blog/technical-blog/deobfuscating-powershell-putting-toothpaste-back-tube)
 
-Part 1: Generate powershell with fake malicious commands + obfuscated versions
-Part 2: Train a classifier
-Part 3 (?): Deobfuscate
+Part 1: Generate powershell with fake malicious commands + obfuscated versions  
+Part 2: Train a classifier  
+Part 3 (?): Deobfuscate  
