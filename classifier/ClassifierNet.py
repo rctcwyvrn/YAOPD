@@ -2,6 +2,7 @@ import keras
 from sklearn import model_selection
 
 #Define dataset
+print("sad")
 #at the moment this won't do anything because X and y don't exist
 X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.20)
 
