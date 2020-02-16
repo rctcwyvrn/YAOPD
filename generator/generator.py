@@ -57,25 +57,18 @@ def inject_shellcode_cmd():
 	return cmd
 
 # commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
-commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd] # inject shellcode seems to be broken when we try to obfuscate it :c
+commands = [["remote_payload_cmd",remote_payload_cmd], 
+			["schtasks_persistence_cmd",schtasks_persistence_cmd], 
+			["set_registry_key_cmd",set_registry_key_cmd]] # inject shellcode seems to be broken when we try to obfuscate it :c
 
 # Testing:
 #commands = [remote_payload_cmd]
 
 def generate_script():
 	script = ""
-	script+= random.choice(commands)()
-	#for f in [random.choice(commands) for _ in range(5)]:
-		#script+=f()
+	choice = random.choice(commands)
 
-	return script
-
-def generate_raw(n):
-	for i in range(n):
-		script = generate_script()
-		f = open(f"res/dataset-{i}-raw.ps1",'w')
-		f.write(script)
-		f.close()
+	return choice[1](),choice[0]
 
 invoke_obfuscation_choices = ["Out-ObfuscatedTokenCommand","Out-ObfuscatedStringCommand", "Out-SecureStringCommand -PassThru"] #"Out-ObfuscatedAST" doesnt work for some reason
 
@@ -87,6 +80,14 @@ invoke_obfuscation_encodings = ["Out-EncodedAsciiCommand", "Out-EncodedBXORComma
 #invoke_obfuscation_encodings = ["Out-EncodedAsciiCommand"]
 
 def obfuscate(script_num):
+
+	# Generate unobfuscated script
+	script, base_choice = generate_script()
+	f = open(f"res/dataset-{script_num}-raw.ps1",'w')
+	f.write(script)
+	f.close()
+
+	# Obfuscate it
 	failed = False 
 	obfs_choice = random.choice(invoke_obfuscation_choices)
 
@@ -99,9 +100,9 @@ def obfuscate(script_num):
 	# NOTE: Encoding is very inconsistent (maybe 25% success rate?) so let's just encode everything and pretend we "chose" not to encode the ones that failed
 	encoded = False
 	if(random.randint(0,10) > -1):
-		encoding_choice = random.choice(invoke_obfuscation_encodings) + " -PassThru"
+		encoding_choice = random.choice(invoke_obfuscation_encodings) + " -PassThru -NoProfile -NonInteractive "
 		encoded = True
-
+		encoding_fail = False
 		#print(f"> Choosing to encode script #{script_num}, encoding = {obfs_choice}")
 		#os.system(f"cat ./res/dataset-{str(script_num)}-obfs.ps1 > ./res/sanity_{str(script_num)}.txt")
 
@@ -110,7 +111,7 @@ def obfuscate(script_num):
 			#print(f"> midpoint script = {script}")
 			script = "{" + script + "}"
 			#p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -Path ./res/dataset-{str(script_num)}-obfs.ps1\" > ./res/dataset-{str(script_num)}-obfs.ps1")
-			p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -Script {script}\" > ./res/dataset-{str(script_num)}-obfs-enc.ps1 2>> ./res/err.log")
+			p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -ScriptBlock {script}\" > ./res/dataset-{str(script_num)}-obfs-enc.ps1 2>> ./res/err.log")
 			p.wait()
 
 			try:
@@ -120,6 +121,7 @@ def obfuscate(script_num):
 			except Exception as e:
 				#failed = True
 				encoded = False #Just pretend the encoding never happened lul
+				encoding_fail = True
 
 	# Compress sometimes, WIP
 	compressed = False
@@ -134,43 +136,37 @@ def obfuscate(script_num):
 		lines = f.readlines()
 		#print("> Generated lines = " + "\n".join(lines))
 
-		log = f"echo {str(script_num)}\t{obfs_choice}"
+		log = f"echo {str(script_num)},{base_choice},{obfs_choice}"
+
 		if encoded:
-			log += "\t" + encoding_choice
+			log += "," + encoding_choice
 		else:
-			log += "\tnot_encoded"
+			if encoding_fail:
+				log += ",failed_encoding"
+			else:
+				log += ",not_encoded"
 
 		if compressed:
-			log += "\tcompressed"
+			log += ",compressed"
 		else:
-			log += "\tnot_compressed"
+			log += ",not_compressed"
 
 		if len(lines) == 0 or failed:
 			print(f"> !!! Script #{script_num} obfuscation failed!!")
 			os.system(f"rm ./res/dataset-{str(script_num)}-obfs.ps1 ./res/dataset-{str(script_num)}-raw.ps1")
 
-			log += " >> ./res/failed.log"
+			log += " >> ./res/failed.csv"
 
 		else:
-			log += " >> ./res/success.log"
+			log += " >> ./res/success.csv"
 			print(f"> Script #{script_num} obfuscation succeeded!")
 
 		os.system(log)
 	p.close()
 	return
 
-
-THREAD_NUM = int(sys.argv[2])
-
-def generate_obfs(n):
-	
-	print("Generating fake malicious powershell")
-	generate_raw(n)
-
-	print("Converting to obfuscated powershell")
-
-	#run_threads(range(n))
+if __name__ == "__main__":
+	print("Generating dataset")
+	THREAD_NUM = int(sys.argv[2])
 	with multiprocessing.Pool(THREAD_NUM) as p:
-		p.map(obfuscate, range(n))
-
-generate_obfs(int(sys.argv[1]))
+		p.map(obfuscate, range(int(sys.argv[1])))
