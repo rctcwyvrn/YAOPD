@@ -1,2 +1,3 @@
-generator/res/
+generator/data/res/
+generator/data/external_samples/lazy_win_admin_Powershell/
 .idea/

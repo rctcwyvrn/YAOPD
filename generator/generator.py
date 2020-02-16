@@ -6,8 +6,7 @@ import os
 import sys
 import math
 import multiprocessing
-import time
-import queue
+import glob
 
 def get_random_dest():
 	path = "/" + "".join([random.choice(string.ascii_letters + string.digits) for _ in range(random.randint(5,10))])
@@ -79,45 +78,55 @@ invoke_obfuscation_encodings = ["Out-EncodedAsciiCommand", "Out-EncodedBXORComma
 #invoke_obfuscation_choices = ["Out-ObfuscatedStringCommand"]
 #invoke_obfuscation_encodings = ["Out-EncodedAsciiCommand"]
 
-def obfuscate(script_num):
-
+def generate_and_obfuscate(script_num):
 	# Generate unobfuscated script
 	script, base_choice = generate_script()
-	f = open(f"res/dataset-{script_num}-raw.ps1",'w')
+	f = open(f"./data/res/generated-{script_num}.ps1",'w')
 	f.write(script)
 	f.close()
 
 	# Obfuscate it
+	obfuscate("./data/res", f"generated-{script_num}.ps1", base_choice)
+	os.system(f"mv ./data/res/generated-{script_num}.ps1 ./data/res/generated-{script_num}-raw.ps1")
+
+# source_folder: source folder duh
+# filename: filename of the powershell target 
+# base_choice: the generator function if it was generated, empty otherwise
+
+# outputs will be written to ./data/res/filename-obfs.ps1
+def obfuscate(source_folder, filename, base_choice=""):
+	filename = filename[:-4]
+	name = f"./data/res/{filename}"
 	failed = False 
 	obfs_choice = random.choice(invoke_obfuscation_choices)
 
 	#print(f"> Obfuscating script #{script_num}, commands for Invoke-Obfuscation = {obfs_choice}")
 
-	p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {obfs_choice} -Path ./res/dataset-{str(script_num)}-raw.ps1\" > ./res/dataset-{str(script_num)}-obfs.ps1 2>> ./res/err.log")
+	p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {obfs_choice} -Path {source_folder}/{filename}.ps1\" > {name}-obfs.ps1 2>> ./data/res/err.log")
 	p.wait()
 
 	# Encode sometimes
 	# NOTE: Encoding is very inconsistent (maybe 25% success rate?) so let's just encode everything and pretend we "chose" not to encode the ones that failed
 	encoded = False
-	if(random.randint(0,10) > -1):
+	encoding_fail = False
+	if(random.randint(0,10) > -1 and not base_choice == ""):
 		encoding_choice = random.choice(invoke_obfuscation_encodings) + " -PassThru -NoProfile -NonInteractive "
 		encoded = True
-		encoding_fail = False
 		#print(f"> Choosing to encode script #{script_num}, encoding = {obfs_choice}")
-		#os.system(f"cat ./res/dataset-{str(script_num)}-obfs.ps1 > ./res/sanity_{str(script_num)}.txt")
+		#os.system(f"cat {name}-obfs.ps1 > ./data/res/sanity_{str(script_num)}.txt")
 
-		with open(f"./res/dataset-{str(script_num)}-obfs.ps1") as f:
+		with open(f"{name}-obfs.ps1") as f:
 			script = "".join(f.readlines())
 			#print(f"> midpoint script = {script}")
 			script = "{" + script + "}"
-			#p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -Path ./res/dataset-{str(script_num)}-obfs.ps1\" > ./res/dataset-{str(script_num)}-obfs.ps1")
-			p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -ScriptBlock {script}\" > ./res/dataset-{str(script_num)}-obfs-enc.ps1 2>> ./res/err.log")
+			#p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -Path {name}-obfs.ps1\" > {name}-obfs.ps1")
+			p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; {encoding_choice} -ScriptBlock {script}\" > {name}-obfs-enc.ps1 2>> ./data/res/err.log")
 			p.wait()
 
 			try:
-				f = open(f"./res/dataset-{str(script_num)}-obfs-enc.ps1")
+				f = open(f"{name}-obfs-enc.ps1")
 				f.close()
-				os.system(f"rm ./res/dataset-{str(script_num)}-obfs.ps1; mv ./res/dataset-{str(script_num)}-obfs-enc.ps1 ./res/dataset-{str(script_num)}-obfs.ps1")
+				os.system(f"rm {name}-obfs.ps1; mv {name}-obfs-enc.ps1 {name}-obfs.ps1")
 			except Exception as e:
 				#failed = True
 				encoded = False #Just pretend the encoding never happened lul
@@ -128,15 +137,22 @@ def obfuscate(script_num):
 	# if (random.randint(0,1) == 1):
 	# 	compressed = True
 	# 	print(f"> Choosing to compress script #{script_num}")
-	# 	p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; Out-CompressedCommand -NoProfile -NonInteractive -NoLogo -Path ./res/dataset-{str(script_num)}-obfs.ps1\" > ./res/dataset-{str(script_num)}-obfs.ps1")
+	# 	p = pexpect.spawn(f"pwsh -Command \"Import-Module ./Invoke-Obfuscation/Invoke-Obfuscation.psd1; Out-CompressedCommand -NoProfile -NonInteractive -NoLogo -Path {name}-obfs.ps1\" > {name}-obfs.ps1")
 	# 	p.wait()
 
 	# Test for success
-	with open(f"./res/dataset-{str(script_num)}-obfs.ps1") as f:
+	with open(f"{name}-obfs.ps1") as f:
 		lines = f.readlines()
 		#print("> Generated lines = " + "\n".join(lines))
 
-		log = f"echo {str(script_num)},{base_choice},{obfs_choice}"
+		log = f"echo {str(name)}"
+
+		if not base_choice == "":
+			log+=f",{base_choice}"
+		else:
+			log+=",not_generated_sample"
+
+		log+=f",{obfs_choice}"
 
 		if encoded:
 			log += "," + encoding_choice
@@ -152,21 +168,38 @@ def obfuscate(script_num):
 			log += ",not_compressed"
 
 		if len(lines) == 0 or failed:
-			print(f"> !!! Script #{script_num} obfuscation failed!!")
-			os.system(f"rm ./res/dataset-{str(script_num)}-obfs.ps1 ./res/dataset-{str(script_num)}-raw.ps1")
+			print(f"> !!! Script {name} obfuscation failed!!")
+			#os.system(f"rm {name}-obfs.ps1 {name}-raw.ps1")
 
-			log += " >> ./res/failed.csv"
+			log += " >> ./data/res/failed.csv"
 
 		else:
-			log += " >> ./res/success.csv"
-			print(f"> Script #{script_num} obfuscation succeeded!")
+			log += " >> ./data/res/success.csv"
+			print(f"> Script {name} obfuscation succeeded!")
 
 		os.system(log)
 	p.close()
 	return
 
+def obfuscate_external(filename):
+	parts = filename.split("/")
+	short_name = parts[-1]
+	path = "/".join(parts[:-1])
+
+	print("Obfuscating: ",filename)
+	obfuscate(path, short_name)
+	os.system(f"cp {filename} ./data/res/{short_name[:-4]}-raw.ps1")
+
+sample_sets = ["./data/external_samples/lazy_win_admin_Powershell"]
+#sample_sets = ["./data/external_samples/test"]
+
 if __name__ == "__main__":
 	print("Generating dataset")
 	THREAD_NUM = int(sys.argv[2])
 	with multiprocessing.Pool(THREAD_NUM) as p:
-		p.map(obfuscate, range(int(sys.argv[1])))
+		p.map(generate_and_obfuscate, range(int(sys.argv[1])))
+
+	print("Obfuscating external powershell samples")
+	for s in sample_sets:
+		with multiprocessing.Pool(THREAD_NUM) as p:
+			p.map(obfuscate_external, glob.glob(s+"/*.ps1"))
