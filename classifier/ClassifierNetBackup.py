@@ -2,7 +2,6 @@ import keras
 import InputProcessor
 from sklearn import model_selection
 
-n_epochs
 #Define dataset
 X, y = InputProcessor.generateData()
 #at the moment this won't do anything because X and y don't exist
