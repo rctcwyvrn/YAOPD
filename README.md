@@ -26,3 +26,10 @@ The solution? The solution to the rest of lifes problems, neural networks!
 Part 1: Generate powershell with fake malicious commands + obfuscated versions  
 Part 2: Train a classifier  
 Part 3 (?): Deobfuscate  
+
+Code sources:
+Obfuscator: https://github.com/danielbohannon/Invoke-Obfuscation
+Inject-LocalShellcode script: https://github.com/PowerShellMafia/PowerSploit
+
+Non-Malicious powershell sources:
+https://github.com/lazywinadmin/PowerShell

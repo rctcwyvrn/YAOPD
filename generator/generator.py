@@ -47,7 +47,7 @@ def schtasks_persistence_cmd():
 
 def set_registry_key_cmd():
 	key_location, key_name = get_random_regkey()
-	cmd = f"Set-ItemProperty '{key_location}' -Name '{key_name}' -Value {get_random_text(50,100)}\n"
+	cmd = f"Set-ItemProperty '{key_location}' -Name '{key_name}' -Value {get_random_text(50,200)}\n"
 	return cmd
 
 def inject_shellcode_cmd():
@@ -55,10 +55,18 @@ def inject_shellcode_cmd():
 	cmd += "".join(open("./scripts/inject_shellcode.ps1").readlines())
 	return cmd
 
-# commands = [remote_payload_cmd, schtasks_persistence_cmd, set_registry_key_cmd, inject_shellcode_cmd]
-commands = [["remote_payload_cmd",remote_payload_cmd], 
-			["schtasks_persistence_cmd",schtasks_persistence_cmd], 
-			["set_registry_key_cmd",set_registry_key_cmd]] # inject shellcode seems to be broken when we try to obfuscate it :c
+#Just an insane amount of random text to mess with our classifier
+def write_nonsense_cmd():
+	cmd = "Write-Host '" + get_random_text(100,1000) + "'"
+	return cmd
+
+ commands = [
+ 			["remote_payload_cmd", remote_payload_cmd], 
+ 			["schtasks_persistence_cmd", schtasks_persistence_cmd], 
+ 			["set_registry_key_cmd", set_registry_key_cmd],
+ 			["inject_shellcode_cmd", inject_shellcode_cmd],
+ 			["write_nonsense_cmd", write_nonsense_cmd]
+ 			]
 
 # Testing:
 #commands = [remote_payload_cmd]
@@ -70,7 +78,6 @@ def generate_script():
 	return choice[1](),choice[0]
 
 invoke_obfuscation_choices = ["Out-ObfuscatedTokenCommand","Out-ObfuscatedStringCommand", "Out-SecureStringCommand -PassThru"] #"Out-ObfuscatedAST" doesnt work for some reason
-
 invoke_obfuscation_encodings = ["Out-EncodedAsciiCommand", "Out-EncodedBXORCommand", "Out-EncodedBinaryCommand", "Out-EncodedHexCommand", "Out-EncodedOctalCommand", "Out-EncodedSpecialCharOnlyCommand", "Out-EncodedWhitespaceCommand"]
 
 
@@ -190,8 +197,8 @@ def obfuscate_external(filename):
 	obfuscate(path, short_name)
 	os.system(f"cp {filename} ./data/res/{short_name[:-4]}-raw.ps1")
 
-sample_sets = ["./data/external_samples/lazy_win_admin_Powershell"]
-#sample_sets = ["./data/external_samples/test"]
+#sample_sets = ["./data/external_samples/lazy_win_admin_Powershell"]
+sample_sets = []
 
 if __name__ == "__main__":
 	print("Generating dataset")
